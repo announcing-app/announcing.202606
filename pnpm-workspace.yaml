@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+# pnpm 10 requires explicit approval for dependency build scripts.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - workerd

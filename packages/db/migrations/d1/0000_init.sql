@@ -1,0 +1,10 @@
+-- Phase 1 authors the global control schema here. Planned tables:
+--
+--   users(google_sub TEXT PRIMARY KEY, display_name TEXT NOT NULL)
+--   sessions(session_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at INTEGER NOT NULL)
+--   channels(subdomain TEXT PRIMARY KEY, channel_id TEXT NOT NULL,
+--            region TEXT NOT NULL, owner_user_id TEXT NOT NULL)   -- subdomain uniqueness point
+--   memberships(user_id TEXT, channel_id TEXT, role TEXT, PRIMARY KEY (user_id, channel_id))
+--
+-- Apply with:  wrangler d1 migrations apply announcing-control --remote
+-- (see infra/README.md). This placeholder keeps the migrations directory tracked.

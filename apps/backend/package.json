@@ -1,0 +1,20 @@
+{
+	"name": "@announcing/backend",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"gen": "wrangler types",
+		"typecheck": "wrangler types && tsc --noEmit"
+	},
+	"dependencies": {
+		"@announcing/core": "workspace:*",
+		"@announcing/db": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^6.0.3",
+		"wrangler": "^4.97.0"
+	}
+}

@@ -1,0 +1,19 @@
+{
+	"name": "@announcing/db",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"types": "./src/index.ts",
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@announcing/core": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^6.0.3"
+	}
+}

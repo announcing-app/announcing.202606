@@ -1,0 +1,53 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "announcing-web",
+	"compatibility_date": "2026-06-28",
+	// nodejs_compat (superset of nodejs_als) is required: paraglide's SSR middleware
+	// imports node:async_hooks (AsyncLocalStorage) at runtime on workerd.
+	"compatibility_flags": ["nodejs_compat"],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"observability": { "enabled": true },
+	"workers_dev": true,
+	"preview_urls": true,
+
+	// --- Global control layer: D1 (primary in EU / weur). Run infra/provision.sh to create. ---
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "announcing-control",
+			"database_id": "REPLACE_WITH_D1_DATABASE_ID"
+		}
+	],
+
+	// --- Images (region-placed / EU jurisdiction). Run infra/provision.sh to create. ---
+	"r2_buckets": [
+		{
+			"binding": "IMAGES",
+			"bucket_name": "announcing-images"
+		}
+	],
+
+	// --- Regional data layer: ChannelDO + Workflows are defined in the `announcing-backend`
+	//     worker (apps/backend) and reached here via cross-worker bindings (script_name). ---
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "CHANNEL",
+				"class_name": "ChannelDO",
+				"script_name": "announcing-backend"
+			}
+		]
+	},
+	"workflows": [
+		{
+			"binding": "PUBLISH",
+			"name": "announcing-publish",
+			"class_name": "PublishWorkflow",
+			"script_name": "announcing-backend"
+		}
+	]
+}

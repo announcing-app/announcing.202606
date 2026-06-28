@@ -120,15 +120,27 @@ Phase 4  通知（Web push）
 Phase 5  運営（寄付・分析最小・運用）
 ```
 
-### Phase 0 — 基盤
+### Phase 0 — 基盤 ✅（完了）
 
-- [ ] pnpm workspace モノレポ初期化
-- [ ] SvelteKit + `adapter-cloudflare` セットアップ
-- [ ] antfu/eslint-config / vitest / playwright 導入
-- [ ] wrangler 設定・bindings 雛形（DO / D1 / R2 / Workflows）
-- [ ] i18n基盤（ja/en）導入
-- [ ] CI（lint / typecheck / test）
-- [ ] ローカル開発環境（wrangler dev / miniflare）
+- [x] pnpm workspace モノレポ初期化
+- [x] SvelteKit + `adapter-cloudflare` セットアップ
+- [x] antfu/eslint-config / vitest / playwright 導入
+- [x] wrangler 設定・bindings 雛形（DO / D1 / R2 / Workflows）
+- [x] i18n基盤（ja/en）導入
+- [x] CI（lint / typecheck / test）
+- [x] ローカル開発環境（wrangler dev / miniflare）
+
+**実装メモ（Phase 0 で確定した事項）**
+
+- **DO/Workflow は専用ワーカー `apps/backend` に分離**。`apps/web`（SvelteKit）から `script_name`
+  でクロスワーカー binding する。理由: adapter-cloudflare は default export しか出さないため、
+  DO/Workflow の named export をプラグイン依存で混ぜる代わりに、第一者primitivesのみで階層分離。
+- **Node >=22 必須**（最新 wrangler/vite の要件）。`.node-version` = `24`、CI も `.node-version` 準拠。
+- **`apps/web` は `nodejs_compat` フラグ必須**（paraglide の SSR が `node:async_hooks` を使う）。
+- 構成: `apps/web`（SvelteKit Worker）/ `apps/backend`（DO+Workflow Worker）/ `packages/core`
+  （ドメイン・型）/ `packages/db`（D1スキーマ・型）/ `infra/`（プロビジョニング手順）。
+- Cloudflare リソースは未作成（wrangler.jsonc は **プレースホルダID**）。`infra/provision.sh` で作成し、
+  出力された D1 `database_id` を両 wrangler.jsonc に貼る。
 
 ### Phase 1 — コア（最小で動くもの）
 
