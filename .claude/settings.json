@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__cloudflare-docs",
+      "mcp__cloudflare-bindings",
+      "mcp__cloudflare-observability",
+      "mcp__svelte",
+      "Bash(pnpm:*)",
+      "Bash(pnpm dlx:*)",
+      "Bash(wrangler:*)",
+      "Bash(npx wrangler:*)",
+      "Bash(vitest:*)",
+      "Bash(npx vitest:*)",
+      "Bash(playwright:*)",
+      "Bash(npx playwright:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "cloudflare-docs",
+    "cloudflare-bindings",
+    "cloudflare-observability",
+    "svelte"
+  ],
+  "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "cloudflare@cloudflare": true
+  }
+}
