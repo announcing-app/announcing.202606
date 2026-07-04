@@ -12,7 +12,14 @@ export default defineConfig({
 			},
 			adapter: adapter(),
 		}),
-		paraglideVitePlugin({ project: './project.inlang', outdir: './src/lib/paraglide' }),
+		paraglideVitePlugin({
+			project: './project.inlang',
+			outdir: './src/lib/paraglide',
+			// Dashboard/landing locale: cookie (explicit choice) → Accept-Language →
+			// base. Public channel pages ignore this and render in the channel's own
+			// locale so cached HTML is stable and readers are never cookie-tracked.
+			strategy: ['cookie', 'preferredLanguage', 'baseLocale'],
+		}),
 	],
 	test: {
 		expect: { requireAssertions: true },

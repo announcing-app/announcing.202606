@@ -22,7 +22,8 @@
 		{
 			"binding": "DB",
 			"database_name": "announcing-control",
-			"database_id": "REPLACE_WITH_D1_DATABASE_ID"
+			"database_id": "REPLACE_WITH_D1_DATABASE_ID",
+			"migrations_dir": "../../packages/db/migrations/d1"
 		}
 	],
 	"r2_buckets": [{ "binding": "IMAGES", "bucket_name": "announcing-images" }]

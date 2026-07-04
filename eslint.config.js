@@ -31,4 +31,13 @@ export default antfu(
 			'jsonc/sort-keys': 'off',
 		},
 	},
+	{
+		files: ['**/*.svelte'],
+		rules: {
+			// The app maps hosts to route groups in `reroute` (app.X → /app/*,
+			// {channel}.X → /c/{channel}/*). Browser-facing hrefs are public paths,
+			// not internal route ids, so kit's resolve() would produce wrong URLs.
+			'svelte/no-navigation-without-resolve': 'off',
+		},
+	},
 );

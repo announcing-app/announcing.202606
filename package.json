@@ -10,6 +10,7 @@
 	"scripts": {
 		"dev": "pnpm --filter @announcing/web dev",
 		"dev:backend": "pnpm --filter @announcing/backend dev",
+		"db:migrate": "pnpm --filter @announcing/web db:migrate",
 		"build": "pnpm -r build",
 		"gen": "pnpm -r gen",
 		"lint": "eslint .",

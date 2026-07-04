@@ -5,18 +5,19 @@
 	const { data }: { data: PageData } = $props();
 </script>
 
-<svelte:head><title>{m.app_title()}</title></svelte:head>
+<svelte:head>
+	<title>{m.app_title()}</title>
+	<meta name='description' content={m.app_tagline()} />
+</svelte:head>
 
-<main>
+<main class='hero'>
 	<h1>{m.app_title()}</h1>
-	<p>{m.app_tagline()}</p>
-
-	<section>
-		<h2>{m.bindings_heading()}</h2>
-		<ul>
-			{#each Object.entries(data.bindings) as [name, ok] (name)}
-				<li>{ok ? '✅' : '⛔'} {name}</li>
-			{/each}
-		</ul>
-	</section>
+	<p class='tagline'>{m.app_tagline()}</p>
+	<ul class='hero-points'>
+		<li>{m.landing_point_no_ads()}</li>
+		<li>{m.landing_point_no_tracking()}</li>
+		<li>{m.landing_point_no_account()}</li>
+	</ul>
+	<a class='btn primary' href={data.dashboardUrl}>{m.landing_open_dashboard()}</a>
+	<p class='muted'>{m.landing_dashboard_hint()}</p>
 </main>

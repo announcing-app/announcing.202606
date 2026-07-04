@@ -27,17 +27,23 @@ infra/           Provisioning + deployment notes
 
 ```sh
 pnpm install
-pnpm dev          # apps/web at http://localhost:5173
+pnpm dev:backend  # terminal 1: DO / Workflow worker (cross-worker bindings via dev registry)
+pnpm dev          # terminal 2: apps/web at http://localhost:5173
 ```
+
+Then open `http://app.localhost:5173` (dashboard, passwordless dev login) and
+`http://{channel}.localhost:5173` (public pages). See
+[infra/README.md](infra/README.md) for details.
 
 | Command | Description |
 | --- | --- |
-| `pnpm dev` | Run the web app (Vite, local bindings emulated) |
-| `pnpm dev:backend` | Run the DO / Workflow worker in isolation |
+| `pnpm dev` | Run the web app (Vite; applies local D1 migrations first) |
+| `pnpm dev:backend` | Run the DO / Workflow worker (required alongside `pnpm dev`) |
+| `pnpm db:migrate` | Apply D1 migrations to the local dev database |
 | `pnpm lint` / `pnpm lint:fix` | Lint (and fix) the whole repo |
 | `pnpm typecheck` | Typecheck every package |
 | `pnpm test` | Run unit tests |
-| `pnpm test:e2e` | Run Playwright e2e tests |
+| `pnpm test:e2e` | Build + run Playwright e2e (multi-worker `wrangler dev`) |
 | `pnpm build` | Build all buildable packages |
 
 First-time Cloudflare provisioning and deployment: see [infra/README.md](infra/README.md).

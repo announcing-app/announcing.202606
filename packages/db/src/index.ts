@@ -1,22 +1,25 @@
 import type { Continent, Role } from '@announcing/core';
 
 /**
- * Row shapes for the global control layer (D1, primary in EU / weur).
- * Only the minimum personal data is stored: `google_sub` + `display_name`.
- *
- * SQL migrations live in ./migrations/d1 and are applied with
- * `wrangler d1 migrations apply` (see infra/README.md). The concrete tables are
- * authored in Phase 1; these interfaces describe their intended shape.
+ * Row shapes for the global control layer (D1, primary in EU / weur), matching
+ * ./migrations/d1. Only the minimum personal data is stored: `google_sub` +
+ * `display_name`. Apply migrations with `wrangler d1 migrations apply`
+ * (see infra/README.md).
  */
+
 export interface UserRow {
+	id: string;
 	google_sub: string;
 	display_name: string;
+	created_at: number;
 }
 
 export interface SessionRow {
-	session_id: string;
+	/** sha256(token) — raw tokens are never stored. */
+	id: string;
 	user_id: string;
 	expires_at: number;
+	created_at: number;
 }
 
 export interface ChannelRow {
@@ -24,12 +27,14 @@ export interface ChannelRow {
 	channel_id: string;
 	region: Continent;
 	owner_user_id: string;
+	created_at: number;
 }
 
 export interface MembershipRow {
 	user_id: string;
 	channel_id: string;
 	role: Role;
+	created_at: number;
 }
 
 /** Directory (relative to this package) holding the D1 SQL migrations. */

@@ -142,17 +142,48 @@ Phase 5  運営（寄付・分析最小・運用）
 - Cloudflare リソースは未作成（wrangler.jsonc は **プレースホルダID**）。`infra/provision.sh` で作成し、
   出力された D1 `database_id` を両 wrangler.jsonc に貼る。
 
-### Phase 1 — コア（最小で動くもの）
+### Phase 1 — コア（最小で動くもの） ✅（完了）
 
-- [ ] グローバルD1スキーマ: `users` / `sessions` / `channels` / `memberships`
-- [ ] Google OAuth（arctic）+ セッション
-- [ ] チャンネル作成: サブドメイン一意性チェック + 予約語 + リージョン選択（大陸）
-- [ ] `ChannelDO`(SQLite) スキーマ: `posts` / `members` / `settings`
-- [ ] DO の location hint / jurisdiction による地域配置
-- [ ] メンバー管理: 権限（owner / editor）+ 招待フロー
-- [ ] 投稿作成/編集/削除（プレーンテキスト + 自動リンク + 画像複数 → R2）
-- [ ] 公開チャンネルページ `{channel}.announcing.app`（immutableキャッシュ配信）
-- [ ] ダッシュボード `app.announcing.app`
+- [x] グローバルD1スキーマ: `users` / `sessions` / `channels` / `memberships`
+- [x] Google OAuth（arctic）+ セッション（+ ローカル開発用ログイン）
+- [x] チャンネル作成: サブドメイン一意性チェック + 予約語 + リージョン選択（大陸）
+- [x] `ChannelDO`(SQLite) スキーマ: `posts` / `members` / `settings`（+ `invites`）
+- [x] DO の location hint / jurisdiction による地域配置
+- [x] メンバー管理: 権限（owner / editor）+ 招待フロー
+- [x] 投稿作成/編集/削除（プレーンテキスト + 自動リンク + 画像複数 → R2）
+- [x] 公開チャンネルページ `{channel}.announcing.app`（Cache API キャッシュ配信）
+- [x] ダッシュボード `app.announcing.app`
+
+**実装メモ（Phase 1 で確定した事項）**
+
+- **ホストベースルーティング**: 単一の web ワーカーが `reroute` フック（`src/hooks.ts`）で
+  3面を配信する。`app.{base}` → `/app/*`、`{channel}.{base}` → `/c/{channel}/*`、apex → landing。
+  ローカルは `*.localhost` で本番同型（`localhost:5173` / `app.localhost:5173` / `{ch}.localhost:5173`）。
+  本番の base は wrangler vars `PUBLIC_BASE_HOST`。
+- **ローカル開発は2プロセス**: `pnpm dev`（web, vite）+ `pnpm dev:backend`（backend, wrangler dev）。
+  dev registry 経由でクロスワーカー DO RPC が解決される。e2e / preview は
+  マルチconfig `wrangler dev -c wrangler.jsonc -c ../backend/wrangler.jsonc`（1プロセス）。
+- **DO RPC の失敗は値で返す**（`ChannelResult<T> = {ok:true,value} | {ok:false,code}`、契約は
+  core の `ChannelApi`）。throw は miniflare の dev registry プロキシを通らない（assertion 死）ため。
+  本番でもエラーメッセージ文字列へのトンネリング依存が消えるので採用。
+- **権限判定は常に ChannelDO 内**（caller userId を渡して members テーブルで検証）。D1 の
+  `memberships` は「自分のチャンネル一覧」用インデックスで、DO 操作成功後に web が同期する。
+- **CONTINENTS は Cloudflare 公式 location hint に一致**させた（`afr`/`wnam` 含む9種。
+  Phase 0 の `af` 8種は API と不一致だった）。`weur`/`eeur` は `jurisdiction: 'eu'` で DO 生成、
+  他は `locationHint`。**jurisdiction はローカル workerd 未実装**のため dev のみ平常 namespace に
+  フォールバック（`lib/server/channel.ts`、該当エラー時のみ・警告ログ付き）。
+- **認証**: Google OIDC は scope `openid` のみ（保存は `google_sub` だけ・profile も取らない）。
+  表示名は初回ログイン後の onboarding で本人入力。セッションは D1 に sha256(token) を保存、
+  Cookie はダッシュボードホストのみ（公開ページは Cookie レス維持）。開発用ログイン
+  （`dev:{name}` ユーザー）は vite dev で自動有効、built 環境では `DEV_AUTH=1`（.dev.vars / --var）。
+- **招待**: URL は `/invites/{channelId}.{secret}`。DO には sha256 のみ保存・7日期限・1回使い切り。
+  リンクは作成直後に1度だけ表示。
+- **公開ページのキャッシュ**: Cache API（hooks）+ `cache-control: public, max-age=60`。
+  画像は immutable（imageId 一意）。投稿 URL の rev 付き immutable 化とパージは Phase 2 の
+  revision 設計と一緒に行う。公開ページの言語はチャンネル設定の locale（Accept-Language 非依存で
+  キャッシュ安定・読者トラッキングなし）。
+- **D1 マイグレーション**: `packages/db/migrations/d1` を両 wrangler.jsonc の `migrations_dir` に設定。
+  ローカルは `pnpm db:migrate`（`pnpm dev` / `pnpm preview` が自動実行）。
 
 ### Phase 2 — 配信
 

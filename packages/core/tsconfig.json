@@ -1,4 +1,10 @@
 {
 	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		// Web-standard globals (crypto, TextEncoder) exist on all our targets:
+		// workerd, Node ≥22 and browsers. The DOM lib is the portable way to
+		// type them without pulling in @types/node.
+		"lib": ["ES2023", "DOM"]
+	},
 	"include": ["src/**/*.ts"]
 }

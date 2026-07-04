@@ -4,9 +4,11 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "pnpm db:migrate && vite dev",
+		"dev:solo": "vite dev",
 		"build": "wrangler types && vite build",
-		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
+		"db:migrate": "wrangler d1 migrations apply announcing-control --local",
+		"preview": "pnpm db:migrate && wrangler dev -c wrangler.jsonc -c ../backend/wrangler.jsonc --port 4173 --var DEV_AUTH:1",
 		"prepare": "svelte-kit sync && paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide || echo ''",
 		"gen": "wrangler types && paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
 		"typecheck": "wrangler types && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -17,7 +19,9 @@
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {
-		"@announcing/core": "workspace:*"
+		"@announcing/core": "workspace:*",
+		"@announcing/db": "workspace:*",
+		"arctic": "^3.7.0"
 	},
 	"devDependencies": {
 		"@inlang/paraglide-js": "^2.18.2",
