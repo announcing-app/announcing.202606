@@ -4,6 +4,7 @@ import { loadChannelContext } from '$lib/server/dashboard';
 import { requireUser } from '$lib/server/guard';
 import { deleteImages, uploadPostImages } from '$lib/server/images';
 import { requireEnv } from '$lib/server/platform';
+import { parsePublishAction } from '$lib/server/posts';
 import { LIMITS, sortableId } from '@announcing/core';
 import { error, fail, redirect } from '@sveltejs/kit';
 
@@ -33,12 +34,16 @@ export const actions: Actions = {
 		if (body.trim().length === 0 || body.length > LIMITS.postBody)
 			return fail(400, { error: 'body' as const, body });
 
+		const publish = parsePublishAction(form);
+		if (!publish)
+			return fail(400, { error: 'schedule' as const, body });
+
 		const upload = await uploadPostImages(env, row.channel_id, files);
 		if (!upload.ok)
 			return fail(400, { error: upload.reason, body });
 
 		try {
-			await rpc(stub.createPost(user.id, { id: sortableId(), body, imageIds: upload.imageIds }));
+			await rpc(stub.createPost(user.id, { id: sortableId(), body, imageIds: upload.imageIds, publish }));
 		}
 		catch (err) {
 			await deleteImages(env, row.channel_id, upload.imageIds);

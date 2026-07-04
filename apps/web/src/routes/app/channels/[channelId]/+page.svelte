@@ -21,6 +21,8 @@
 <p class='muted'>
 	{m.channel_public_url()}:
 	<a href={data.publicOrigin} target='_blank' rel='noreferrer'>{data.publicOrigin}</a>
+	· <a href={`${data.publicOrigin}/rss.xml`} target='_blank' rel='noreferrer'>RSS</a>
+	· <a href={`${data.publicOrigin}/atom.xml`} target='_blank' rel='noreferrer'>Atom</a>
 </p>
 
 {#if data.dashboard.posts.length === 0}
@@ -34,12 +36,20 @@
 					<p class='muted'>🖼 {post.imageIds.length}</p>
 				{/if}
 				<p class='post-meta'>
-					{formatDate(post.createdAt, getLocale())}
+					{#if post.status === 'draft'}
+						<span class='badge'>{m.post_status_draft()}</span>
+					{:else if post.status === 'scheduled'}
+						<span class='badge scheduled'>{m.post_status_scheduled()}: {formatDate(post.scheduledAt!, getLocale())} UTC</span>
+					{:else}
+						{formatDate(post.publishedAt ?? post.createdAt, getLocale())}
+					{/if}
 					{#if post.updatedAt}({m.post_edited()}){/if}
 					·
 					<a href={`/channels/${meta.channelId}/posts/${post.id}/edit`}>{m.post_edit()}</a>
-					·
-					<a href={`${data.publicOrigin}/p/${post.id}`} target='_blank' rel='noreferrer'>{m.post_view_public()}</a>
+					{#if post.status === 'published'}
+						·
+						<a href={`${data.publicOrigin}/p/${post.id}`} target='_blank' rel='noreferrer'>{m.post_view_public()}</a>
+					{/if}
 				</p>
 			</li>
 		{/each}

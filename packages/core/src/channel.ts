@@ -48,6 +48,26 @@ export function isRole(value: string): value is Role {
 	return (ROLES as readonly string[]).includes(value);
 }
 
+/**
+ * Post lifecycle. `draft` and `scheduled` are dashboard-only; the public
+ * surface (pages and feeds) shows `published` posts exclusively. `published`
+ * is terminal — posts can still be edited or deleted, but never unpublished
+ * (public URLs stay meaningful).
+ */
+export const POST_STATUSES = ['draft', 'scheduled', 'published'] as const;
+export type PostStatus = (typeof POST_STATUSES)[number];
+
+/**
+ * What should happen to a post's visibility when it is saved.
+ * - `draft`    keep/park it as a draft
+ * - `now`      publish immediately (no-op if already published)
+ * - `schedule` publish automatically at `at` (epoch ms, must be in the future)
+ */
+export type PublishAction
+	= | { mode: 'draft' }
+		| { mode: 'now' }
+		| { mode: 'schedule'; at: number };
+
 /** Subdomains that may never be claimed as a channel name. */
 export const RESERVED_SUBDOMAINS: ReadonlySet<string> = new Set([
 	'www',
@@ -88,6 +108,8 @@ export const LIMITS = {
 	postBody: 10_000,
 	postImages: 8,
 	imageBytes: 5 * 1024 * 1024,
+	/** How far ahead a post may be scheduled (Workflows sleep caps at 365 days). */
+	scheduleMaxAheadMs: 364 * 24 * 60 * 60 * 1000,
 } as const;
 
 /** How long an invite link stays usable. */
@@ -112,13 +134,28 @@ export interface PostView {
 	id: string;
 	body: string;
 	imageIds: string[];
+	status: PostStatus;
+	/** Set while status is `scheduled`: when the post will go public (epoch ms). */
+	scheduledAt: number | null;
+	/** Set once status is `published`; scheduled posts get their intended time. */
+	publishedAt: number | null;
 	createdBy: string;
 	createdAt: number;
+	/** Only bumped by edits made *after* publication (drives the “edited” marker). */
 	updatedAt: number | null;
 }
 
-/** Public pages never expose who wrote a post. */
-export type PublicPostView = Omit<PostView, 'createdBy'>;
+/**
+ * Public pages and feeds only ever see published posts, dated by publication —
+ * never authors, drafts or schedule internals.
+ */
+export interface PublicPostView {
+	id: string;
+	body: string;
+	imageIds: string[];
+	publishedAt: number;
+	updatedAt: number | null;
+}
 
 export interface MemberView {
 	userId: string;
@@ -176,6 +213,7 @@ export interface ChannelSettingsPatch {
 export interface PostInput {
 	body: string;
 	imageIds: string[];
+	publish: PublishAction;
 }
 
 type MaybePromise<T> = T | Promise<T>;
@@ -215,6 +253,12 @@ export interface ChannelApi {
 	updatePost: (caller: string, postId: string, input: PostInput) => MaybePromise<ChannelResult<PostView>>;
 	/** Returns the deleted post so the caller can clean up R2 images. */
 	deletePost: (caller: string, postId: string) => MaybePromise<ChannelResult<PostView>>;
+	/**
+	 * Called by the PublishWorkflow when a schedule fires. Publishes the post
+	 * only if it is still scheduled under the same token — a reschedule or
+	 * delete makes the stale workflow resolve to `skipped` instead of erroring.
+	 */
+	publishScheduled: (postId: string, scheduleToken: string) => MaybePromise<ChannelResult<'published' | 'skipped'>>;
 
 	// -- members / invites ----------------------------------------------------
 	createInvite: (caller: string, input: { inviteId: string; tokenHash: string; role: Role }) => MaybePromise<ChannelResult<InviteView>>;

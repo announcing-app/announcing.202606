@@ -133,7 +133,8 @@ label.field {
 	font-size: 0.95rem;
 }
 
-label.field .hint {
+label.field .hint,
+fieldset.field .hint {
 	font-weight: 400;
 	color: var(--muted);
 	font-size: 0.85rem;
@@ -141,6 +142,7 @@ label.field .hint {
 
 input[type='text'],
 input[type='file'],
+input[type='datetime-local'],
 select,
 textarea {
 	font: inherit;
@@ -246,6 +248,48 @@ textarea:focus-visible,
 .post-meta {
 	color: var(--muted);
 	font-size: 0.85rem;
+}
+
+.badge {
+	display: inline-block;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 0.05rem 0.6rem;
+	font-size: 0.8rem;
+	background: color-mix(in srgb, var(--muted) 8%, var(--surface));
+}
+
+.badge.scheduled {
+	border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+	background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+/* -- publish mode controls (post forms) ------------------------------------ */
+
+fieldset.publish-modes {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 0.75rem 0.9rem;
+	display: grid;
+	gap: 0.4rem;
+}
+
+fieldset.publish-modes legend {
+	font-weight: 600;
+	padding: 0 0.35rem;
+}
+
+fieldset.publish-modes label {
+	font-weight: 400;
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+}
+
+fieldset.publish-modes .schedule-at {
+	display: grid;
+	gap: 0.25rem;
+	margin: 0 0 0.25rem 1.6rem;
 }
 
 /* -- tables (members) ------------------------------------------------------- */

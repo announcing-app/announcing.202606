@@ -4,6 +4,7 @@ import { loadChannelContext } from '$lib/server/dashboard';
 import { requireUser } from '$lib/server/guard';
 import { deleteImages, uploadPostImages } from '$lib/server/images';
 import { requireEnv } from '$lib/server/platform';
+import { parsePublishAction } from '$lib/server/posts';
 import { publicChannelOrigin } from '$lib/urls';
 import { LIMITS } from '@announcing/core';
 import { error, fail, redirect } from '@sveltejs/kit';
@@ -36,13 +37,19 @@ export const actions: Actions = {
 		if (body.trim().length === 0 || body.length > LIMITS.postBody)
 			return fail(400, { error: 'body' as const, body });
 
+		// Published posts get no publish controls in the form; the default mode
+		// 'now' keeps them published (the DO rejects any other transition).
+		const publish = parsePublishAction(form);
+		if (!publish)
+			return fail(400, { error: 'schedule' as const, body });
+
 		const upload = await uploadPostImages(env, row.channel_id, files, keptIds.length);
 		if (!upload.ok)
 			return fail(400, { error: upload.reason, body });
 
 		const imageIds = [...keptIds, ...upload.imageIds];
 		try {
-			await rpc(stub.updatePost(user.id, post.id, { body, imageIds }));
+			await rpc(stub.updatePost(user.id, post.id, { body, imageIds, publish }));
 		}
 		catch (err) {
 			await deleteImages(env, row.channel_id, upload.imageIds);

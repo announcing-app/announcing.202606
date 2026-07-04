@@ -185,11 +185,38 @@ Phase 5  運営（寄付・分析最小・運用）
 - **D1 マイグレーション**: `packages/db/migrations/d1` を両 wrangler.jsonc の `migrations_dir` に設定。
   ローカルは `pnpm db:migrate`（`pnpm dev` / `pnpm preview` が自動実行）。
 
-### Phase 2 — 配信
+### Phase 2 — 配信 ✅（完了）
 
-- [ ] RSS / Atom フィード生成（公開・キャッシュ可）
-- [ ] 投稿状態 `draft / scheduled / published`
-- [ ] 予約公開（Workflows によるスケジュール実行）
+- [x] RSS / Atom フィード生成（公開・キャッシュ可）
+- [x] 投稿状態 `draft / scheduled / published`
+- [x] 予約公開（Workflows によるスケジュール実行）
+
+**実装メモ（Phase 2 で確定した事項）**
+
+- **投稿状態は ChannelDO の posts に列追加**（`status` / `scheduled_at` / `published_at` /
+  `schedule_token`）。公開面（ページ・フィード）は `published` のみを `published_at` 降順で返す。
+  `published` は終端状態（本文編集・削除は可、非公開化は不可 = 公開URLは意味を保つ）。
+  `updated_at` は**公開後の編集のみ**記録（下書き中の編集で「編集済み」表示が付かないように）。
+  既存ローカルDO には constructor 内で `PRAGMA table_info` を見て ALTER TABLE（`published_at
+  = created_at` で埋める）。
+- **予約公開は DO 自身が Workflow を生成**（`PUBLISH` は backend ワーカー内の same-worker
+  binding。web からのクロスワーカー Workflow 生成を避け、dev registry 経由の不確実性も回避）。
+  web 側 wrangler.jsonc の workflows binding は削除。フローは
+  `sleepUntil(予定時刻)` → `publishScheduled(postId, scheduleToken)` RPC。DO は
+  `status='scheduled' AND schedule_token 一致` のときだけ公開し、それ以外は `'skipped'`（値）で
+  解決 → **リスケ・削除は新 token 発行だけで古いインスタンスが自然無効化**（terminate 不要）。
+  `published_at` は発火時刻ではなく**予定時刻**。Workflow 生成失敗時は補償（作成時: 行削除 /
+  更新時: draft に退避）。Workflow への DO 参照は `ctx.id.toString()`（jurisdiction 込み）を渡し
+  `idFromString` で復元。
+- **RSS/Atom は core の純関数**（`buildRssXml` / `buildAtomXml`、vitest 済）。チャンネルホストの
+  `/rss.xml` `/atom.xml` で配信し、HTML と同じ `cache-control: public, max-age=60` + Cache API に
+  乗せる（Cookie なし・トラッキングなしのまま）。本文は `renderBodyHtml` → `<br>` 変換 + 画像
+  `<img>` を付けて XML エスケープして埋め込み。アイテムタイトルは本文先頭行（80字で省略）。
+- **予約時刻の入力**は `datetime-local`（`step=1` で秒許可）+ hidden の epoch ms（クライアントで
+  端末TZ→ms 変換。JS 無効時はサーバが UTC として解釈）。上限は 364 日先（Workflows の sleep
+  上限 365 日の内側、`LIMITS.scheduleMaxAheadMs`）。
+- 投稿 URL の rev 付き immutable 化とキャッシュパージは**未対応のまま持ち越し**（公開キャッシュは
+  TTL 60s。§7 に記載）。
 
 ### Phase 3 — 健全性
 

@@ -31,7 +31,7 @@
 			</div>
 		{/if}
 		<p class='post-meta'>
-			{formatDate(data.post.createdAt, locale)}
+			{formatDate(data.post.publishedAt, locale)}
 			{#if data.post.updatedAt}· {m.public_edited(undefined, { locale })}{/if}
 		</p>
 	</article>

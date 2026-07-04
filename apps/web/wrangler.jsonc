@@ -41,8 +41,10 @@
 		}
 	],
 
-	// --- Regional data layer: ChannelDO + Workflows are defined in the `announcing-backend`
-	//     worker (apps/backend) and reached here via cross-worker bindings (script_name). ---
+	// --- Regional data layer: the ChannelDO lives in the `announcing-backend` worker
+	//     (apps/backend) and is reached via a cross-worker binding (script_name).
+	//     Workflows (scheduled publishing) are spawned by the ChannelDO inside the
+	//     backend worker itself, so the web worker needs no workflow binding. ---
 	"durable_objects": {
 		"bindings": [
 			{
@@ -51,13 +53,5 @@
 				"script_name": "announcing-backend"
 			}
 		]
-	},
-	"workflows": [
-		{
-			"binding": "PUBLISH",
-			"name": "announcing-publish",
-			"class_name": "PublishWorkflow",
-			"script_name": "announcing-backend"
-		}
-	]
+	}
 }

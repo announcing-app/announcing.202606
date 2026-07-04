@@ -9,12 +9,14 @@ import type {
 	InviteView,
 	MemberView,
 	PostInput,
+	PostStatus,
 	PostView,
 	PublicChannelView,
 	PublicPostView,
 	Role,
 	SettingsView,
 } from '@announcing/core';
+import type { PublishParams } from './workflows';
 import {
 	AppError,
 	appErrorCode,
@@ -23,6 +25,7 @@ import {
 	isChannelLocale,
 	isContinent,
 	LIMITS,
+	randomToken,
 } from '@announcing/core';
 import { DurableObject } from 'cloudflare:workers';
 
@@ -52,6 +55,10 @@ interface PostRow {
 	id: string;
 	body: string;
 	image_ids: string;
+	status: PostStatus;
+	scheduled_at: number | null;
+	published_at: number | null;
+	schedule_token: string | null;
 	created_by: string;
 	created_at: number;
 	updated_at: number | null;
@@ -110,6 +117,10 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 					id TEXT PRIMARY KEY,
 					body TEXT NOT NULL,
 					image_ids TEXT NOT NULL,
+					status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('draft', 'scheduled', 'published')),
+					scheduled_at INTEGER,
+					published_at INTEGER,
+					schedule_token TEXT,
 					created_by TEXT NOT NULL,
 					created_at INTEGER NOT NULL,
 					updated_at INTEGER
@@ -125,7 +136,27 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 					used_at INTEGER
 				) STRICT;
 			`);
+			this.migratePostsToPhase2();
 		});
+	}
+
+	/**
+	 * Phase 1 → 2: posts created before publishing states existed gain the new
+	 * columns and count as published at their creation time. (Local dev DBs
+	 * only — no production DOs predate Phase 2.)
+	 */
+	private migratePostsToPhase2(): void {
+		const sql = this.ctx.storage.sql;
+		const cols = sql.exec('PRAGMA table_info(posts)').toArray().map(row => row.name as string);
+		if (cols.includes('status'))
+			return;
+		sql.exec(`
+			ALTER TABLE posts ADD COLUMN status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('draft', 'scheduled', 'published'));
+			ALTER TABLE posts ADD COLUMN scheduled_at INTEGER;
+			ALTER TABLE posts ADD COLUMN published_at INTEGER;
+			ALTER TABLE posts ADD COLUMN schedule_token TEXT;
+			UPDATE posts SET published_at = created_at;
+		`);
 	}
 
 	/** Health check kept from Phase 0 (cheap RPC liveness probe). */
@@ -135,9 +166,9 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 
 	// -- private helpers ------------------------------------------------------
 
-	private guard<T>(fn: () => T): ChannelResult<T> {
+	private async guard<T>(fn: () => T | Promise<T>): Promise<ChannelResult<T>> {
 		try {
-			return { ok: true, value: fn() };
+			return { ok: true, value: await fn() };
 		}
 		catch (err) {
 			const code = appErrorCode(err);
@@ -195,6 +226,9 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 			id: row.id,
 			body: row.body,
 			imageIds: JSON.parse(row.image_ids) as string[],
+			status: row.status,
+			scheduledAt: row.scheduled_at,
+			publishedAt: row.published_at,
 			createdBy: row.created_by,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at,
@@ -202,13 +236,26 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 	}
 
 	private toPublicPost(row: PostRow): PublicPostView {
-		const { createdBy: _, ...rest } = this.toPostView(row);
-		return rest;
+		return {
+			id: row.id,
+			body: row.body,
+			imageIds: JSON.parse(row.image_ids) as string[],
+			publishedAt: row.published_at ?? row.created_at,
+			updatedAt: row.updated_at,
+		};
 	}
 
+	/** Dashboard list: every status, newest created first. */
 	private listPostRows(limit: number): PostRow[] {
 		return this.sql
 			.exec('SELECT * FROM posts ORDER BY id DESC LIMIT ?', limit)
+			.toArray() as unknown as PostRow[];
+	}
+
+	/** Public list: published only, newest publication first. */
+	private listPublishedRows(limit: number): PostRow[] {
+		return this.sql
+			.exec('SELECT * FROM posts WHERE status = \'published\' ORDER BY published_at DESC, id DESC LIMIT ?', limit)
 			.toArray() as unknown as PostRow[];
 	}
 
@@ -233,6 +280,15 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 		}
 		if (new Set(input.imageIds).size !== input.imageIds.length)
 			throw new AppError('invalid', 'duplicate image');
+		const publish = input.publish;
+		if (publish.mode === 'schedule') {
+			const now = Date.now();
+			if (!Number.isSafeInteger(publish.at) || publish.at <= now || publish.at > now + LIMITS.scheduleMaxAheadMs)
+				throw new AppError('invalid', 'schedule time');
+		}
+		else if (publish.mode !== 'draft' && publish.mode !== 'now') {
+			throw new AppError('invalid', 'publish mode');
+		}
 	}
 
 	private static validateSettingsPatch(patch: ChannelSettingsPatch): void {
@@ -281,7 +337,7 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 				return null;
 			return {
 				meta: this.toMeta(settings),
-				posts: this.listPostRows(PUBLIC_POSTS_LIMIT).map(row => this.toPublicPost(row)),
+				posts: this.listPublishedRows(PUBLIC_POSTS_LIMIT).map(row => this.toPublicPost(row)),
 			};
 		});
 	}
@@ -292,7 +348,8 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 			if (!settings)
 				return null;
 			const row = this.postRowOrNull(postId);
-			if (!row)
+			// Drafts and scheduled posts are indistinguishable from nonexistent ones.
+			if (!row || row.status !== 'published')
 				return null;
 			return { meta: this.toMeta(settings), post: this.toPublicPost(row) };
 		});
@@ -359,22 +416,57 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 
 	// -- posts --------------------------------------------------------------------
 
+	/**
+	 * Start a PublishWorkflow for one (post, schedule) pair. The token makes the
+	 * instance single-purpose: any later reschedule/delete replaces the token and
+	 * the old instance resolves to `skipped` when it fires.
+	 */
+	private async spawnPublishWorkflow(postId: string, scheduleToken: string, publishAt: number): Promise<void> {
+		await this.env.PUBLISH.create({
+			id: `pub_${postId}_${scheduleToken}`,
+			params: {
+				doId: this.ctx.id.toString(),
+				postId,
+				scheduleToken,
+				publishAt,
+			} satisfies PublishParams,
+		});
+	}
+
 	async createPost(caller: string, input: PostInput & { id: string }): Promise<ChannelResult<PostView>> {
-		return this.guard(() => {
+		return this.guard(async () => {
 			this.requireRole(caller, ['owner', 'editor']);
 			ChannelDO.validatePostInput(input);
 			if (!/^[0-9a-hjkmnp-tv-z]{26}$/.test(input.id))
 				throw new AppError('invalid', 'post id');
 			if (this.postRowOrNull(input.id))
 				throw new AppError('conflict', 'post id');
+			const publish = input.publish;
+			const now = Date.now();
+			const scheduleToken = publish.mode === 'schedule' ? randomToken(16) : null;
 			this.sql.exec(
-				'INSERT INTO posts (id, body, image_ids, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL)',
+				'INSERT INTO posts (id, body, image_ids, status, scheduled_at, published_at, schedule_token, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)',
 				input.id,
 				input.body,
 				JSON.stringify(input.imageIds),
+				publish.mode === 'draft' ? 'draft' : publish.mode === 'now' ? 'published' : 'scheduled',
+				publish.mode === 'schedule' ? publish.at : null,
+				publish.mode === 'now' ? now : null,
+				scheduleToken,
 				caller,
-				Date.now(),
+				now,
 			);
+			if (publish.mode === 'schedule') {
+				try {
+					await this.spawnPublishWorkflow(input.id, scheduleToken!, publish.at);
+				}
+				catch (err) {
+					// No workflow, no schedule: drop the row so the caller's cleanup
+					// (R2 images) sees a plain failure instead of a zombie post.
+					this.sql.exec('DELETE FROM posts WHERE id = ?', input.id);
+					throw err;
+				}
+			}
 			return this.toPostView(this.postRowOrNull(input.id)!);
 		});
 	}
@@ -388,18 +480,45 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 	}
 
 	async updatePost(caller: string, postId: string, input: PostInput): Promise<ChannelResult<PostView>> {
-		return this.guard(() => {
+		return this.guard(async () => {
 			this.requireRole(caller, ['owner', 'editor']);
 			ChannelDO.validatePostInput(input);
-			if (!this.postRowOrNull(postId))
+			const row = this.postRowOrNull(postId);
+			if (!row)
 				throw new AppError('not_found');
+			const publish = input.publish;
+			// Published is terminal: content stays editable, visibility does not.
+			if (row.status === 'published' && publish.mode !== 'now')
+				throw new AppError('invalid', 'published is final');
+
+			const now = Date.now();
+			const scheduleToken = publish.mode === 'schedule' ? randomToken(16) : null;
 			this.sql.exec(
-				'UPDATE posts SET body = ?, image_ids = ?, updated_at = ? WHERE id = ?',
+				'UPDATE posts SET body = ?, image_ids = ?, status = ?, scheduled_at = ?, published_at = ?, schedule_token = ?, updated_at = ? WHERE id = ?',
 				input.body,
 				JSON.stringify(input.imageIds),
-				Date.now(),
+				publish.mode === 'draft' ? 'draft' : publish.mode === 'now' ? 'published' : 'scheduled',
+				publish.mode === 'schedule' ? publish.at : null,
+				row.status === 'published' ? row.published_at : publish.mode === 'now' ? now : null,
+				scheduleToken,
+				// Only post-publication edits show as “edited” on the public pages.
+				row.status === 'published' ? now : row.updated_at,
 				postId,
 			);
+			if (publish.mode === 'schedule') {
+				try {
+					await this.spawnPublishWorkflow(postId, scheduleToken!, publish.at);
+				}
+				catch (err) {
+					// Park the post as a draft; the previous schedule token (if any)
+					// is already superseded, so nothing will publish behind our back.
+					this.sql.exec(
+						'UPDATE posts SET status = \'draft\', scheduled_at = NULL, schedule_token = NULL WHERE id = ?',
+						postId,
+					);
+					throw err;
+				}
+			}
 			return this.toPostView(this.postRowOrNull(postId)!);
 		});
 	}
@@ -410,8 +529,26 @@ export class ChannelDO extends DurableObject<Env> implements ChannelApi {
 			const row = this.postRowOrNull(postId);
 			if (!row)
 				throw new AppError('not_found');
+			// A pending PublishWorkflow (if any) will find no matching token and skip.
 			this.sql.exec('DELETE FROM posts WHERE id = ?', postId);
 			return this.toPostView(row);
+		});
+	}
+
+	async publishScheduled(postId: string, scheduleToken: string): Promise<ChannelResult<'published' | 'skipped'>> {
+		return this.guard(() => {
+			const row = this.postRowOrNull(postId);
+			// Deleted, already published, or rescheduled under a new token: the
+			// firing workflow is stale and must do nothing.
+			if (!row || row.status !== 'scheduled' || row.schedule_token !== scheduleToken)
+				return 'skipped' as const;
+			this.sql.exec(
+				'UPDATE posts SET status = \'published\', published_at = ?, scheduled_at = NULL, schedule_token = NULL WHERE id = ?',
+				// The intended publication time, not the (possibly late) firing time.
+				row.scheduled_at ?? Date.now(),
+				postId,
+			);
+			return 'published' as const;
 		});
 	}
 

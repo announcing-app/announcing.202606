@@ -1,18 +1,41 @@
 <script lang='ts'>
 	import type { ActionData, PageData } from './$types';
+	import { toDatetimeLocalValue } from '$lib/format';
 	import * as m from '$lib/paraglide/messages';
 	import { LIMITS } from '@announcing/core';
+	import { onMount } from 'svelte';
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// The mode radio is form state seeded from the loaded post once — it must
+	// not snap back if `data` is invalidated while the user is editing.
+	// svelte-ignore state_referenced_locally
+	let publishMode = $state<'now' | 'schedule' | 'draft'>(data.post.status === 'scheduled' ? 'schedule' : data.post.status === 'draft' ? 'draft' : 'now');
+	let scheduledAtLocal = $state('');
+	const scheduledAtMs = $derived(scheduledAtLocal === '' ? '' : String(new Date(scheduledAtLocal).getTime()));
+
+	// Prefill the schedule input in the device's timezone — client-only, so the
+	// server-rendered markup stays timezone-free.
+	onMount(() => {
+		if (data.post.scheduledAt)
+			scheduledAtLocal = toDatetimeLocalValue(data.post.scheduledAt);
+	});
 
 	const errorMessage = $derived.by(() => {
 		switch (form?.error) {
 			case 'body': return m.error_body_required();
+			case 'schedule': return m.error_schedule_invalid();
 			case 'too_many': return m.error_images_too_many({ max: LIMITS.postImages });
 			case 'too_large': return m.error_image_too_large();
 			case 'unsupported': return m.error_image_unsupported();
 			default: return null;
 		}
+	});
+
+	const submitLabel = $derived.by(() => {
+		if (data.post.status === 'published' || publishMode === 'now')
+			return data.post.status === 'published' ? m.save() : m.post_publish();
+		return publishMode === 'schedule' ? m.post_schedule_submit() : m.post_save_draft();
 	});
 </script>
 
@@ -53,7 +76,24 @@
 			<input type='file' name='images' accept='image/jpeg,image/png,image/webp,image/gif' multiple />
 			<span class='hint'>{m.field_images_hint({ max: LIMITS.postImages })}</span>
 		</label>
-		<div><button class='btn primary' type='submit'>{m.save()}</button></div>
+
+		{#if data.post.status !== 'published'}
+			<fieldset class='field publish-modes'>
+				<legend>{m.field_publish()}</legend>
+				<label><input type='radio' name='publish_mode' value='now' bind:group={publishMode} /> {m.publish_mode_now()}</label>
+				<label><input type='radio' name='publish_mode' value='schedule' bind:group={publishMode} /> {m.publish_mode_schedule()}</label>
+				{#if publishMode === 'schedule'}
+					<div class='schedule-at'>
+						<input type='datetime-local' name='scheduled_at' step='1' bind:value={scheduledAtLocal} required />
+						<input type='hidden' name='scheduled_at_ms' value={scheduledAtMs} />
+						<span class='hint'>{m.field_schedule_hint()}</span>
+					</div>
+				{/if}
+				<label><input type='radio' name='publish_mode' value='draft' bind:group={publishMode} /> {m.publish_mode_draft()}</label>
+			</fieldset>
+		{/if}
+
+		<div><button class='btn primary' type='submit'>{submitLabel}</button></div>
 	</form>
 
 	<hr style='border: none; border-top: 1px solid var(--border); margin: 1rem 0;' />

@@ -12,6 +12,8 @@
 	{#if data.meta.description}
 		<meta name='description' content={data.meta.description} />
 	{/if}
+	<link rel='alternate' type='application/rss+xml' title={`${data.meta.name} (RSS)`} href='/rss.xml' />
+	<link rel='alternate' type='application/atom+xml' title={`${data.meta.name} (Atom)`} href='/atom.xml' />
 </svelte:head>
 
 <header class='topbar'>
@@ -41,7 +43,7 @@
 						</div>
 					{/if}
 					<p class='post-meta'>
-						<a href={`/p/${post.id}`}>{formatDate(post.createdAt, locale)}</a>
+						<a href={`/p/${post.id}`}>{formatDate(post.publishedAt, locale)}</a>
 						{#if post.updatedAt}· {m.public_edited(undefined, { locale })}{/if}
 					</p>
 				</li>
@@ -50,6 +52,7 @@
 	{/if}
 
 	<footer class='muted' style='margin-top: 3rem; text-align: center;'>
+		<p><a href='/rss.xml'>RSS</a> · <a href='/atom.xml'>Atom</a></p>
 		{m.public_powered_by(undefined, { locale })}
 	</footer>
 </main>
