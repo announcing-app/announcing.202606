@@ -1,0 +1,39 @@
+{
+	"name": "@announcing/web",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "pnpm db:migrate && vite dev",
+		"dev:solo": "vite dev",
+		"build": "wrangler types && vite build",
+		"db:migrate": "wrangler d1 migrations apply announcing-control --local",
+		"preview": "pnpm db:migrate && wrangler dev -c wrangler.jsonc -c ../backend/wrangler.jsonc --port 4173 --var DEV_AUTH:1",
+		"prepare": "svelte-kit sync && paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide || echo ''",
+		"gen": "wrangler types && paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
+		"typecheck": "wrangler types && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check": "pnpm typecheck",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"test:watch": "vitest",
+		"test:e2e": "playwright test"
+	},
+	"dependencies": {
+		"@announcing/core": "workspace:*",
+		"@announcing/db": "workspace:*",
+		"arctic": "^3.7.0"
+	},
+	"devDependencies": {
+		"@inlang/paraglide-js": "^2.18.2",
+		"@playwright/test": "^1.60.0",
+		"@sveltejs/adapter-cloudflare": "^7.2.8",
+		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"svelte": "^5.56.1",
+		"svelte-check": "^4.6.0",
+		"typescript": "^6.0.3",
+		"vite": "^8.0.16",
+		"vitest": "^4.1.8",
+		"wrangler": "^4.97.0"
+	}
+}

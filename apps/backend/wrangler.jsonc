@@ -1,0 +1,30 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "announcing-backend",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-06-28",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": { "enabled": true },
+
+	// ChannelDO = one Durable Object per channel (the regional data layer).
+	"durable_objects": {
+		"bindings": [{ "name": "CHANNEL", "class_name": "ChannelDO" }]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChannelDO"] }],
+
+	// Durable async pipelines (scheduled publish / push fan-out / report handling).
+	"workflows": [
+		{ "binding": "PUBLISH", "name": "announcing-publish", "class_name": "PublishWorkflow" }
+	],
+
+	// Workflows reach the global control DB and image storage.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "announcing-control",
+			"database_id": "REPLACE_WITH_D1_DATABASE_ID",
+			"migrations_dir": "../../packages/db/migrations/d1"
+		}
+	],
+	"r2_buckets": [{ "binding": "IMAGES", "bucket_name": "announcing-images" }]
+}

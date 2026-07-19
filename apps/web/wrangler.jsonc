@@ -1,0 +1,57 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "announcing-web",
+	"compatibility_date": "2026-06-28",
+	// nodejs_compat (superset of nodejs_als) is required: paraglide's SSR middleware
+	// imports node:async_hooks (AsyncLocalStorage) at runtime on workerd.
+	"compatibility_flags": ["nodejs_compat"],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"observability": { "enabled": true },
+	"workers_dev": true,
+	"preview_urls": true,
+
+	// Non-secret runtime config. The production apex domain: hosts are classified
+	// as landing / app.{base} dashboard / {channel}.{base} public pages.
+	// (The *.localhost family is always recognized in dev, no config needed.)
+	// Secrets & dev-only flags (GOOGLE_CLIENT_ID/SECRET, DEV_AUTH) are NOT listed
+	// here: local values live in .dev.vars, production ones in `wrangler secret`.
+	"vars": {
+		"PUBLIC_BASE_HOST": "announcing.app"
+	},
+
+	// --- Global control layer: D1 (primary in EU / weur). Run infra/provision.sh to create. ---
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "announcing-control",
+			"database_id": "REPLACE_WITH_D1_DATABASE_ID",
+			"migrations_dir": "../../packages/db/migrations/d1"
+		}
+	],
+
+	// --- Images (region-placed / EU jurisdiction). Run infra/provision.sh to create. ---
+	"r2_buckets": [
+		{
+			"binding": "IMAGES",
+			"bucket_name": "announcing-images"
+		}
+	],
+
+	// --- Regional data layer: the ChannelDO lives in the `announcing-backend` worker
+	//     (apps/backend) and is reached via a cross-worker binding (script_name).
+	//     Workflows (scheduled publishing) are spawned by the ChannelDO inside the
+	//     backend worker itself, so the web worker needs no workflow binding. ---
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "CHANNEL",
+				"class_name": "ChannelDO",
+				"script_name": "announcing-backend"
+			}
+		]
+	}
+}

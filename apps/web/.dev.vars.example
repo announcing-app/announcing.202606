@@ -1,0 +1,11 @@
+# Copy to .dev.vars (gitignored). Local-only values — never deployed.
+
+# Enable the passwordless dev login on /login for `pnpm preview` (built app).
+# `vite dev` enables it automatically, and `pnpm preview` passes it via --var,
+# so this file is only needed when you want to override defaults.
+DEV_AUTH=1
+
+# Optional: real Google OAuth in local dev (create an OAuth client for
+# http://app.localhost:5173 with redirect /auth/google/callback).
+# GOOGLE_CLIENT_ID=….apps.googleusercontent.com
+# GOOGLE_CLIENT_SECRET=…

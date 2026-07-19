@@ -1,0 +1,21 @@
+{
+	"extends": "./.svelte-kit/tsconfig.json",
+	"compilerOptions": {
+		"rewriteRelativeImportExtensions": true,
+		"allowJs": true,
+		// Generated paraglide output (src/lib/paraglide/*.js) ships no .d.ts; leave JS
+		// unchecked (TS default) so its frictions with the strict workerd types don't
+		// fail typecheck. Our exports are still typed via inference; all app code is TS.
+		"checkJs": false,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"moduleResolution": "bundler",
+		"types": [
+			"./worker-configuration.d.ts"
+		]
+	}
+}

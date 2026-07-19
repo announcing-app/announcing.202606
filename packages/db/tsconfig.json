@@ -1,0 +1,9 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		// @announcing/core is consumed as source, so its lib needs (crypto,
+		// TextEncoder via DOM) apply transitively here too.
+		"lib": ["ES2023", "DOM"]
+	},
+	"include": ["src/**/*.ts"]
+}

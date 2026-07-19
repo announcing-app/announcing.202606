@@ -1,0 +1,349 @@
+/* Minimal hand-rolled styles shared by all three surfaces. */
+
+:root {
+	--bg: #f7f7f5;
+	--surface: #ffffff;
+	--text: #1c1c1a;
+	--muted: #6b6b66;
+	--border: #e3e3de;
+	--accent: #2456d6;
+	--accent-text: #ffffff;
+	--danger: #b3261e;
+	--radius: 10px;
+	--maxw: 44rem;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+	line-height: 1.6;
+	-webkit-font-smoothing: antialiased;
+}
+
+a {
+	color: var(--accent);
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+	line-height: 1.25;
+	margin: 0 0 0.5rem;
+}
+
+.container {
+	max-width: var(--maxw);
+	margin: 0 auto;
+	padding: 1.5rem 1rem 4rem;
+}
+
+/* -- top bar ---------------------------------------------------------- */
+
+.topbar {
+	background: var(--surface);
+	border-bottom: 1px solid var(--border);
+}
+
+.topbar-inner {
+	max-width: var(--maxw);
+	margin: 0 auto;
+	padding: 0.6rem 1rem;
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+}
+
+.brand {
+	font-weight: 700;
+	color: var(--text);
+	letter-spacing: 0.01em;
+}
+
+.topbar-spacer {
+	flex: 1;
+}
+
+.topbar .who {
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+
+/* -- cards & lists ------------------------------------------------------ */
+
+.card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 1rem 1.25rem;
+	margin: 0.75rem 0;
+}
+
+.list-plain {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.muted {
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+
+.page-head {
+	display: flex;
+	align-items: baseline;
+	gap: 1rem;
+	flex-wrap: wrap;
+	margin: 1rem 0;
+}
+
+.page-head h1 {
+	margin: 0;
+	font-size: 1.4rem;
+}
+
+.page-head .actions {
+	margin-left: auto;
+	display: flex;
+	gap: 0.5rem;
+}
+
+/* -- forms -------------------------------------------------------------- */
+
+form.stack {
+	display: grid;
+	gap: 0.9rem;
+}
+
+label.field {
+	display: grid;
+	gap: 0.25rem;
+	font-weight: 600;
+	font-size: 0.95rem;
+}
+
+label.field .hint,
+fieldset.field .hint {
+	font-weight: 400;
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+input[type='text'],
+input[type='file'],
+input[type='datetime-local'],
+select,
+textarea {
+	font: inherit;
+	padding: 0.5rem 0.65rem;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface);
+	color: var(--text);
+	width: 100%;
+}
+
+textarea {
+	min-height: 10rem;
+	resize: vertical;
+	white-space: pre-wrap;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.btn:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.btn {
+	display: inline-block;
+	font: inherit;
+	font-weight: 600;
+	padding: 0.5rem 1rem;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: var(--surface);
+	color: var(--text);
+	cursor: pointer;
+}
+
+.btn:hover {
+	text-decoration: none;
+	border-color: var(--muted);
+}
+
+.btn.primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--accent-text);
+}
+
+.btn.primary:hover {
+	filter: brightness(1.08);
+}
+
+.btn.danger {
+	color: var(--danger);
+	border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.btn.small {
+	padding: 0.25rem 0.6rem;
+	font-size: 0.85rem;
+}
+
+.alert {
+	border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+	background: color-mix(in srgb, var(--danger) 6%, var(--surface));
+	color: var(--danger);
+	border-radius: 8px;
+	padding: 0.6rem 0.9rem;
+	margin: 0.75rem 0;
+}
+
+.notice {
+	border: 1px solid var(--border);
+	background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+	border-radius: 8px;
+	padding: 0.6rem 0.9rem;
+	margin: 0.75rem 0;
+	overflow-wrap: anywhere;
+}
+
+/* -- posts ---------------------------------------------------------------- */
+
+.post-body {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	margin: 0.25rem 0 0.5rem;
+}
+
+.post-images {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin: 0.5rem 0;
+}
+
+.post-images img {
+	max-width: min(100%, 20rem);
+	max-height: 20rem;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+}
+
+.post-meta {
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+.badge {
+	display: inline-block;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 0.05rem 0.6rem;
+	font-size: 0.8rem;
+	background: color-mix(in srgb, var(--muted) 8%, var(--surface));
+}
+
+.badge.scheduled {
+	border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+	background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+/* -- publish mode controls (post forms) ------------------------------------ */
+
+fieldset.publish-modes {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 0.75rem 0.9rem;
+	display: grid;
+	gap: 0.4rem;
+}
+
+fieldset.publish-modes legend {
+	font-weight: 600;
+	padding: 0 0.35rem;
+}
+
+fieldset.publish-modes label {
+	font-weight: 400;
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+}
+
+fieldset.publish-modes .schedule-at {
+	display: grid;
+	gap: 0.25rem;
+	margin: 0 0 0.25rem 1.6rem;
+}
+
+/* -- tables (members) ------------------------------------------------------- */
+
+table.plain {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.95rem;
+}
+
+table.plain th,
+table.plain td {
+	text-align: left;
+	padding: 0.45rem 0.5rem;
+	border-bottom: 1px solid var(--border);
+}
+
+table.plain th {
+	color: var(--muted);
+	font-weight: 600;
+	font-size: 0.85rem;
+}
+
+/* -- landing ------------------------------------------------------------------ */
+
+.hero {
+	text-align: center;
+	padding: 4rem 1rem 2rem;
+}
+
+.hero h1 {
+	font-size: 2.2rem;
+	margin-bottom: 0.75rem;
+}
+
+.hero p.tagline {
+	font-size: 1.15rem;
+	color: var(--muted);
+	margin: 0 auto 2rem;
+	max-width: 34rem;
+}
+
+.hero-points {
+	list-style: none;
+	padding: 0;
+	margin: 0 auto 2.5rem;
+	max-width: 22rem;
+	text-align: left;
+	display: grid;
+	gap: 0.5rem;
+}
+
+.hero-points li::before {
+	content: '✓ ';
+	color: var(--accent);
+	font-weight: 700;
+}
