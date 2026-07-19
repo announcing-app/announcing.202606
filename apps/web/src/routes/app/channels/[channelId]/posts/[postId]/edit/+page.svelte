@@ -54,7 +54,7 @@
 	<form class='stack' method='post' action='?/save' enctype='multipart/form-data'>
 		<label class='field'>
 			{m.field_body()}
-			<textarea name='body' required maxlength={LIMITS.postBody}>{form?.body ?? data.post.body}</textarea>
+			<textarea name='body' required maxlength={LIMITS.postBody} value={form?.body || data.post.body}></textarea>
 		</label>
 
 		{#if data.post.imageIds.length > 0}

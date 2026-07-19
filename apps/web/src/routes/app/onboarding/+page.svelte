@@ -18,7 +18,7 @@
 	<form class='stack' method='post'>
 		<label class='field'>
 			{m.onboarding_display_name()}
-			<input type='text' name='display_name' required maxlength={LIMITS.displayName} value={data.displayName} />
+			<input type='text' name='display_name' required maxlength={LIMITS.displayName} value={data.displayName || undefined} />
 		</label>
 		<div><button class='btn primary' type='submit'>{m.save()}</button></div>
 	</form>

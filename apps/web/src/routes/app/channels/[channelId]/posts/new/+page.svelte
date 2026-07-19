@@ -44,7 +44,11 @@
 	<form class='stack' method='post' enctype='multipart/form-data'>
 		<label class='field'>
 			{m.field_body()}
-			<textarea name='body' required maxlength={LIMITS.postBody}>{form?.body ?? ''}</textarea>
+			<!--
+				undefined when pristine: skipped at hydration so text typed before
+				it survives; the error re-render SSRs the submitted body back.
+			-->
+			<textarea name='body' required maxlength={LIMITS.postBody} value={form?.body || undefined}></textarea>
 			<span class='hint'>{m.field_body_hint()}</span>
 		</label>
 		<label class='field'>

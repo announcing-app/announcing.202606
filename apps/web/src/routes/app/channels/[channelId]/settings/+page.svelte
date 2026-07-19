@@ -36,13 +36,13 @@
 		</label>
 		<label class='field'>
 			{m.field_description()}
-			<textarea name='description' maxlength={LIMITS.channelDescription} rows='3' disabled={!isOwner}>{meta.description}</textarea>
+			<textarea name='description' maxlength={LIMITS.channelDescription} rows='3' disabled={!isOwner} value={meta.description || undefined}></textarea>
 		</label>
 		<label class='field'>
 			{m.field_locale()}
-			<select name='locale' value={meta.locale} disabled={!isOwner}>
+			<select name='locale' disabled={!isOwner}>
 				{#each CHANNEL_LOCALES as locale (locale)}
-					<option value={locale}>{locale === 'ja' ? m.locale_ja() : m.locale_en()}</option>
+					<option value={locale} selected={locale === meta.locale}>{locale === 'ja' ? m.locale_ja() : m.locale_en()}</option>
 				{/each}
 			</select>
 		</label>
@@ -69,9 +69,9 @@
 						{#if isOwner && member.userId !== data.userId}
 							<form method='post' action='?/role' style='display: inline-flex; gap: 0.4rem; align-items: center;'>
 								<input type='hidden' name='user_id' value={member.userId} />
-								<select name='role' value={member.role}>
+								<select name='role'>
 									{#each ROLES as role (role)}
-										<option value={role}>{roleLabel(role)}</option>
+										<option value={role} selected={role === member.role}>{roleLabel(role)}</option>
 									{/each}
 								</select>
 								<button class='btn small' type='submit'>{m.member_role_change()}</button>
@@ -109,9 +109,9 @@
 		<form class='stack' method='post' action='?/invite'>
 			<label class='field'>
 				{m.invite_role()}
-				<select name='role' value='editor'>
+				<select name='role'>
 					{#each ROLES as role (role)}
-						<option value={role}>{roleLabel(role)}</option>
+						<option value={role} selected={role === 'editor'}>{roleLabel(role)}</option>
 					{/each}
 				</select>
 			</label>

@@ -14,27 +14,33 @@ function uniq(): string {
 	return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-/**
- * Wait for Svelte hydration before touching form fields: hydration re-applies
- * `value=` attributes and wipes anything typed before it completes (the
- * root layout sets the marker from onMount).
- */
-async function awaitHydrated(page: import('@playwright/test').Page): Promise<void> {
-	await page.waitForSelector('html[data-hydrated]');
-}
-
 async function devLogin(page: import('@playwright/test').Page, name: string): Promise<void> {
 	await page.goto(`${APP}/login`);
-	await awaitHydrated(page);
 	await page.getByLabel(/Username/).fill(name);
 	await page.getByRole('button', { name: 'Log in as dev user' }).click();
 	// `${APP}/**` would match /login itself; wait for the post-login redirect.
 	await page.waitForURL(`${APP}/`);
 }
 
+/**
+ * Select a publish mode on the post form. The mode controls are
+ * client-enhanced (bind:group drives the submit label and the schedule
+ * field), so a check() that lands before hydration is reverted when the
+ * client state takes over — retry until the mode's observable effect
+ * confirms the live form has it.
+ */
+async function setPublishMode(page: import('@playwright/test').Page, mode: 'now' | 'schedule' | 'draft'): Promise<void> {
+	const effect = mode === 'schedule'
+		? page.locator('input[name="scheduled_at"]')
+		: page.getByRole('button', { name: mode === 'draft' ? 'Save draft' : 'Publish' });
+	await expect(async () => {
+		await page.locator(`input[name="publish_mode"][value="${mode}"]`).check();
+		await expect(effect).toBeVisible({ timeout: 1_000 });
+	}).toPass({ timeout: 15_000 });
+}
+
 async function createChannel(page: import('@playwright/test').Page, sub: string, name: string): Promise<void> {
 	await page.goto(`${APP}/channels/new`);
-	await awaitHydrated(page);
 	await page.locator('input[name="subdomain"]').fill(sub);
 	await page.locator('input[name="name"]').fill(name);
 	await page.locator('select[name="region"]').selectOption('apac');
@@ -61,9 +67,8 @@ test('draft lifecycle and feeds: draft stays private → published via edit → 
 
 	// Save a draft; the dashboard shows it with a badge but no public link.
 	await page.getByRole('link', { name: 'New announcement' }).click();
-	await awaitHydrated(page);
 	await page.locator('textarea[name="body"]').fill('Draft only, not public yet');
-	await page.locator('input[name="publish_mode"][value="draft"]').check();
+	await setPublishMode(page, 'draft');
 	await page.getByRole('button', { name: 'Save draft' }).click();
 	await page.waitForURL(`${APP}/channels/*`);
 	await expect(page.locator('.badge')).toHaveText('Draft');
@@ -75,8 +80,7 @@ test('draft lifecycle and feeds: draft stays private → published via edit → 
 
 	// Publish it from the edit form.
 	await page.getByRole('link', { name: 'Edit' }).click();
-	await awaitHydrated(page);
-	await page.locator('input[name="publish_mode"][value="now"]').check();
+	await setPublishMode(page, 'now');
 	await page.getByRole('button', { name: 'Publish' }).click();
 	await page.waitForURL(`${APP}/channels/*`);
 	await expect(page.locator('.badge')).toHaveCount(0);
@@ -90,9 +94,8 @@ test('draft lifecycle and feeds: draft stays private → published via edit → 
 	// A second draft stays out of the feeds.
 	await page.goto(page.url());
 	await page.getByRole('link', { name: 'New announcement' }).click();
-	await awaitHydrated(page);
 	await page.locator('textarea[name="body"]').fill('Never published draft');
-	await page.locator('input[name="publish_mode"][value="draft"]').check();
+	await setPublishMode(page, 'draft');
 	await page.getByRole('button', { name: 'Save draft' }).click();
 	await page.waitForURL(`${APP}/channels/*`);
 
@@ -124,9 +127,8 @@ test('scheduled post is hidden until the workflow publishes it', async ({ page }
 
 	// Schedule ~12s ahead (datetime-local accepts seconds via step=1).
 	await page.getByRole('link', { name: 'New announcement' }).click();
-	await awaitHydrated(page);
 	await page.locator('textarea[name="body"]').fill('Scheduled by e2e');
-	await page.locator('input[name="publish_mode"][value="schedule"]').check();
+	await setPublishMode(page, 'schedule');
 	await page.locator('input[name="scheduled_at"]').fill(datetimeLocalValue(Date.now() + 12_000));
 	await page.getByRole('button', { name: 'Schedule' }).click();
 	await page.waitForURL(`${APP}/channels/*`);

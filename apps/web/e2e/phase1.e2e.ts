@@ -16,18 +16,8 @@ function uniq(): string {
 	return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-/**
- * Wait for Svelte hydration before touching form fields: hydration re-applies
- * `value=` attributes and wipes anything typed before it completes (the
- * root layout sets the marker from onMount).
- */
-async function awaitHydrated(page: import('@playwright/test').Page): Promise<void> {
-	await page.waitForSelector('html[data-hydrated]');
-}
-
 async function devLogin(page: import('@playwright/test').Page, name: string): Promise<void> {
 	await page.goto(`${APP}/login`);
-	await awaitHydrated(page);
 	await page.getByLabel(/Username/).fill(name);
 	await page.getByRole('button', { name: 'Log in as dev user' }).click();
 	// `${APP}/**` would match /login itself; wait for the post-login redirect.
@@ -43,7 +33,6 @@ test('publish flow: login → create channel → post → public page', async ({
 
 	// Create a channel.
 	await page.getByRole('link', { name: 'Create channel' }).click();
-	await awaitHydrated(page);
 	await page.locator('input[name="subdomain"]').fill(sub);
 	await page.locator('input[name="name"]').fill('E2E Channel');
 	await page.locator('textarea[name="description"]').fill('Created by the e2e suite');
@@ -56,7 +45,6 @@ test('publish flow: login → create channel → post → public page', async ({
 
 	// Publish a post with an auto-linked URL.
 	await page.getByRole('link', { name: 'New announcement' }).click();
-	await awaitHydrated(page);
 	await page.locator('textarea[name="body"]').fill('Hello from e2e!\nDetails: https://example.com/news');
 	await page.getByRole('button', { name: 'Publish' }).click();
 	await page.waitForURL(`${APP}/channels/*`);
@@ -85,7 +73,6 @@ test('membership flow: invite → second user joins as editor and posts', async 
 	// Owner creates a channel and an invite link.
 	await devLogin(page, `owner2-${run}`);
 	await page.goto(`${APP}/channels/new`);
-	await awaitHydrated(page);
 	await page.locator('input[name="subdomain"]').fill(`e2e-${run}-team`);
 	await page.locator('input[name="name"]').fill('E2E Team');
 	await page.locator('select[name="region"]').selectOption('weur'); // exercises the EU-jurisdiction DO path
@@ -110,7 +97,6 @@ test('membership flow: invite → second user joins as editor and posts', async 
 	expect(editorPage.url()).toBe(channelUrl);
 
 	await editorPage.getByRole('link', { name: 'New announcement' }).click();
-	await awaitHydrated(editorPage);
 	await editorPage.locator('textarea[name="body"]').fill('Posted by the invited editor');
 	await editorPage.getByRole('button', { name: 'Publish' }).click();
 	await editorPage.waitForURL(`${APP}/channels/*`);
