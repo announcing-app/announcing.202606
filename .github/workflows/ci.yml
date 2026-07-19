@@ -42,3 +42,10 @@ jobs:
       - run: pnpm --filter @announcing/web exec playwright install --with-deps chromium
       - run: pnpm gen
       - run: pnpm --filter @announcing/web test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

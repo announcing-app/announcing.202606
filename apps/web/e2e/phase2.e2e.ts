@@ -7,24 +7,42 @@ import { expect, test } from '@playwright/test';
  * local Workflows execute for real).
  */
 
-const RUN = Date.now().toString(36);
 const APP = 'http://app.localhost:4173';
+
+/** Unique per call so tests stay isolated across workers and --repeat-each. */
+function uniq(): string {
+	return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+/**
+ * Wait for Svelte hydration before touching form fields: hydration re-applies
+ * `value=` attributes and wipes anything typed before it completes (the
+ * root layout sets the marker from onMount).
+ */
+async function awaitHydrated(page: import('@playwright/test').Page): Promise<void> {
+	await page.waitForSelector('html[data-hydrated]');
+}
 
 async function devLogin(page: import('@playwright/test').Page, name: string): Promise<void> {
 	await page.goto(`${APP}/login`);
+	await awaitHydrated(page);
 	await page.getByLabel(/Username/).fill(name);
 	await page.getByRole('button', { name: 'Log in as dev user' }).click();
-	await page.waitForURL(`${APP}/**`);
+	// `${APP}/**` would match /login itself; wait for the post-login redirect.
+	await page.waitForURL(`${APP}/`);
 }
 
 async function createChannel(page: import('@playwright/test').Page, sub: string, name: string): Promise<void> {
 	await page.goto(`${APP}/channels/new`);
+	await awaitHydrated(page);
 	await page.locator('input[name="subdomain"]').fill(sub);
 	await page.locator('input[name="name"]').fill(name);
 	await page.locator('select[name="region"]').selectOption('apac');
 	await page.locator('select[name="locale"]').selectOption('en');
 	await page.getByRole('button', { name: 'Create channel' }).click();
-	await page.waitForURL(`${APP}/channels/*`);
+	// `/channels/*` would match /channels/new itself; require a real channel id
+	// so a failed creation surfaces here, not as a timeout further down.
+	await page.waitForURL(/\/channels\/(?!new$)[^/]+$/);
 }
 
 /** Epoch ms → datetime-local value (with seconds) in this process's timezone. */
@@ -35,13 +53,15 @@ function datetimeLocalValue(ts: number): string {
 }
 
 test('draft lifecycle and feeds: draft stays private → published via edit → RSS/Atom', async ({ page }) => {
-	const sub = `e2e2-${RUN}`;
+	const run = uniq();
+	const sub = `e2e2-${run}`;
 	const pub = `http://${sub}.localhost:4173`;
-	await devLogin(page, `writer-${RUN}`);
+	await devLogin(page, `writer-${run}`);
 	await createChannel(page, sub, 'Phase2 Drafts');
 
 	// Save a draft; the dashboard shows it with a badge but no public link.
 	await page.getByRole('link', { name: 'New announcement' }).click();
+	await awaitHydrated(page);
 	await page.locator('textarea[name="body"]').fill('Draft only, not public yet');
 	await page.locator('input[name="publish_mode"][value="draft"]').check();
 	await page.getByRole('button', { name: 'Save draft' }).click();
@@ -55,6 +75,7 @@ test('draft lifecycle and feeds: draft stays private → published via edit → 
 
 	// Publish it from the edit form.
 	await page.getByRole('link', { name: 'Edit' }).click();
+	await awaitHydrated(page);
 	await page.locator('input[name="publish_mode"][value="now"]').check();
 	await page.getByRole('button', { name: 'Publish' }).click();
 	await page.waitForURL(`${APP}/channels/*`);
@@ -69,6 +90,7 @@ test('draft lifecycle and feeds: draft stays private → published via edit → 
 	// A second draft stays out of the feeds.
 	await page.goto(page.url());
 	await page.getByRole('link', { name: 'New announcement' }).click();
+	await awaitHydrated(page);
 	await page.locator('textarea[name="body"]').fill('Never published draft');
 	await page.locator('input[name="publish_mode"][value="draft"]').check();
 	await page.getByRole('button', { name: 'Save draft' }).click();
@@ -94,13 +116,15 @@ test('draft lifecycle and feeds: draft stays private → published via edit → 
 test('scheduled post is hidden until the workflow publishes it', async ({ page }) => {
 	// Publish wait (≤60s poll) + cold-start slack must fit inside the test.
 	test.setTimeout(120_000);
-	const sub = `e2e2s-${RUN}`;
+	const run = uniq();
+	const sub = `e2e2s-${run}`;
 	const pub = `http://${sub}.localhost:4173`;
-	await devLogin(page, `sched-${RUN}`);
+	await devLogin(page, `sched-${run}`);
 	await createChannel(page, sub, 'Phase2 Scheduling');
 
 	// Schedule ~12s ahead (datetime-local accepts seconds via step=1).
 	await page.getByRole('link', { name: 'New announcement' }).click();
+	await awaitHydrated(page);
 	await page.locator('textarea[name="body"]').fill('Scheduled by e2e');
 	await page.locator('input[name="publish_mode"][value="schedule"]').check();
 	await page.locator('input[name="scheduled_at"]').fill(datetimeLocalValue(Date.now() + 12_000));

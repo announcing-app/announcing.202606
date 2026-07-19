@@ -21,6 +21,10 @@ export default antfu(
 			'**/.wrangler/**',
 			'**/worker-configuration.d.ts',
 			'apps/web/src/lib/paraglide/**',
+			// inlang-managed files regenerated on install (git-ignored via the
+			// project.inlang/.gitignore inlang writes; antfu only reads the root one)
+			'apps/web/project.inlang/.meta.json',
+			'apps/web/project.inlang/cache/**',
 			'pnpm-lock.yaml',
 			'**/*.md',
 		],
